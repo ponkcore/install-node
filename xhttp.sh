@@ -27,6 +27,7 @@ UPLINK_METHOD=${UPLINK_METHOD:-PATCH}
 UPLINK_METHOD=$(echo "$UPLINK_METHOD" | tr '[:lower:]' '[:upper:]')
 read -p "xHTTP path [/api/v1/sync]: " XHTTP_PATH
 XHTTP_PATH=${XHTTP_PATH:-/api/v1/sync}
+XHTTP_PATH="/${XHTTP_PATH#/}"
 read -p "CDN-домен Beeline (опц., типа xxxxxx.a.trbcdn.net): " CDN_DOMAIN
 CDN_DOMAIN=${CDN_DOMAIN:-NEED_TO_FILL}
 # --- Обновление системы ---
@@ -65,12 +66,7 @@ http {
         listen 80;
         listen [::]:80;
         server_name _;
-        location /.well-known/acme-challenge/ {
-            root /var/lib/angie/acme/vless;
-        }
-        location / {
-            return 301 https://\$host\$request_uri;
-        }
+        return 301 https://\$host\$request_uri;
     }
     server {
         listen 127.0.0.1:4123 ssl proxy_protocol;
@@ -127,7 +123,7 @@ EOFDC
 # --- Запуск Angie сначала (чтобы выпустить ACME) ---
 echo ">>> Запуск Angie..."
 cd /opt/remnanode && docker compose up -d angie
-echo ">>> Ожидание выпуска ACME-сертификата (~60 сек)..."
+echo ">>> Ожидание выпуска ACME-сертификата (~120 сек)..."
 CERT_READY=false
 for i in {1..24}; do
     if docker exec angie test -f /var/lib/angie/acme/vless/certificate.pem 2>/dev/null \
@@ -423,7 +419,7 @@ echo "         Разрешённые HTTP методы: + ${UPLINK_METHOD}"
 echo "     - Сохранить → Полная очистка кэша"
 echo ""
 echo "  6. Проверка после настройки CDN:"
-echo "     curl -kI https://${CDN_DOMAIN}/${XHTTP_PATH}"
+echo "     curl -kI https://${CDN_DOMAIN}${XHTTP_PATH}"
 echo "     Должен вернуть HTTP/2 404 (с server: nginx, x-cdn-edge-id)"
 echo ""
 if [ "$CERT_READY" = false ]; then
